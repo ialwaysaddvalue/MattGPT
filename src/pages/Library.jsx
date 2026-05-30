@@ -1,31 +1,29 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TOOLS, CATEGORIES, CATEGORY_COLORS, CATEGORY_ICONS, getTodaysTool } from '../data/tools';
+import { track, EVENTS } from '../hooks/useAnalytics';
 
 const LAUNCH = new Date(2026, 4, 29);
 function getTodayDayIndex() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const diff = Math.floor((today - LAUNCH) / (1000 * 60 * 60 * 24));
-  return ((diff % 60) + 60) % 60; // 0-indexed
+  return ((diff % 60) + 60) % 60;
 }
 
-export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
+export default function Library({ isPro, isCompleted, isViewed, openProModal }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const todayTool = getTodaysTool();
   const todayIndex = getTodayDayIndex();
+  const searchTimer = useRef(null);
 
-  // Tools that are "available" (have been shown) based on launch date cycling
-  // Free users: only last 7 days
-  // Pro users: all 60
   const availableTools = useMemo(() => {
     const result = [];
     for (let i = 0; i <= todayIndex; i++) {
       result.push({ ...TOOLS[i], locked: false });
     }
-    // Remaining tools are locked for free, available for pro
     for (let i = todayIndex + 1; i < 60; i++) {
       result.push({ ...TOOLS[i], locked: !isPro });
     }
@@ -44,24 +42,43 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
     });
   }, [availableTools, activeCategory, search]);
 
-  // Determine which tools are accessible (within free 7-day window from today)
   const isAccessible = (dayNum) => {
     if (isPro) return true;
-    // Find position in the cycle relative to today
     const toolIndex = TOOLS.findIndex(t => t.day === dayNum);
     const daysAgo = ((todayIndex - toolIndex) + 60) % 60;
     return daysAgo < freeLimit;
+  };
+
+  const learnedCount = useMemo(() => TOOLS.filter(t => isViewed(t.day)).length, [isViewed]);
+
+  const handleSearch = (val) => {
+    setSearch(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (val.trim()) {
+      searchTimer.current = setTimeout(() => {
+        track(EVENTS.LIBRARY_SEARCHED, { query: val });
+      }, 600);
+    }
+  };
+
+  const handleCategory = (cat) => {
+    setActiveCategory(cat);
+    if (cat !== 'All') {
+      track(EVENTS.CATEGORY_FILTERED, { category: cat });
+    }
   };
 
   return (
     <div className="page" style={{ background: '#0B1F3A' }}>
       {/* Header */}
       <div style={{ padding: '52px 20px 0' }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: '#FAF7F0', letterSpacing: -0.5, marginBottom: 4 }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: '#FAF7F0', letterSpacing: -0.5, marginBottom: 2 }}>
           Tool Library
         </div>
-        <div style={{ fontSize: 13, color: '#6B7E99', marginBottom: 16 }}>
-          {isPro ? 'All 60 tools unlocked' : `Last ${freeLimit} days free · Upgrade for full archive`}
+        <div style={{ fontSize: 13, color: '#6B7E99', marginBottom: 14 }}>
+          {isPro
+            ? `All 60 tools unlocked · ${learnedCount}/60 learned`
+            : `${learnedCount}/60 learned · Last ${freeLimit} days free`}
         </div>
 
         {/* Search */}
@@ -75,7 +92,7 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
             type="text"
             placeholder="Search tools..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => handleSearch(e.target.value)}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
               color: '#FAF7F0', fontSize: 14, padding: '12px 0',
@@ -101,7 +118,7 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
             return (
               <button
                 key={cat}
-                onClick={() => setActiveCategory(cat)}
+                onClick={() => handleCategory(cat)}
                 style={{
                   flexShrink: 0,
                   background: isActive ? `${color}20` : 'rgba(255,255,255,0.04)',
@@ -133,7 +150,6 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
               const color = CATEGORY_COLORS[tool.category];
               const isToday = todayTool?.day === tool.day;
               const done = isCompleted(tool.day);
-              const seen = isViewed(tool.day);
 
               return (
                 <div
@@ -142,8 +158,8 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
                     if (accessible) {
                       navigate(`/tool/${tool.day}`);
                     } else {
-                      // Show paywall / upgrade prompt
-                      navigate('/profile');
+                      track(EVENTS.UPGRADE_CTA_CLICKED, { cta: 'library_lock', tool: tool.name });
+                      openProModal();
                     }
                   }}
                   style={{
@@ -155,11 +171,8 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
                     transition: 'opacity 0.2s',
                   }}
                 >
-                  {/* Day badge + lock */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{
-                      fontSize: 10, fontWeight: 700, color: '#6B7E99', letterSpacing: 0.5,
-                    }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#6B7E99', letterSpacing: 0.5 }}>
                       Day {tool.day}
                     </div>
                     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -175,12 +188,10 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
                     </div>
                   </div>
 
-                  {/* Category icon */}
                   <div style={{ fontSize: 20, marginBottom: 6 }}>
                     {CATEGORY_ICONS[tool.category]}
                   </div>
 
-                  {/* Tool name */}
                   <div style={{
                     fontSize: 14, fontWeight: 800, color: '#FAF7F0', marginBottom: 4,
                     lineHeight: 1.2,
@@ -188,9 +199,8 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
                     {tool.name}
                   </div>
 
-                  {/* Tagline */}
                   <div style={{
-                    fontSize: 11, color: color, fontWeight: 500, lineHeight: 1.4,
+                    fontSize: 11, color, fontWeight: 500, lineHeight: 1.4,
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
@@ -199,7 +209,6 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
                     {tool.tagline}
                   </div>
 
-                  {/* Blur overlay for locked */}
                   {!accessible && (
                     <div style={{
                       position: 'absolute', inset: 0, borderRadius: 14,
@@ -229,20 +238,23 @@ export default function Library({ isPro, isCompleted, isViewed, setIsPro }) {
           }}>
             <div style={{ fontSize: 24, marginBottom: 8 }}>🔓</div>
             <div style={{ fontSize: 14, fontWeight: 800, color: '#FAF7F0', marginBottom: 4 }}>
-              Unlock All 60 Tools
+              Unlock All 60 Tools Free
             </div>
             <div style={{ fontSize: 12, color: '#8A9DB8', marginBottom: 12 }}>
-              Go Pro for the full archive, streak freezes, and challenge history.
+              Founding members get Pro free during beta. No credit card needed.
             </div>
             <button
-              onClick={() => navigate('/profile')}
+              onClick={() => {
+                track(EVENTS.UPGRADE_CTA_CLICKED, { cta: 'library_banner' });
+                openProModal();
+              }}
               style={{
                 background: '#C9A84C', color: '#0B1F3A',
                 border: 'none', borderRadius: 10, padding: '10px 20px',
                 fontSize: 13, fontWeight: 800, cursor: 'pointer',
               }}
             >
-              Upgrade to Pro — $4.99/mo
+              Join Free — Founding Member →
             </button>
           </div>
         )}

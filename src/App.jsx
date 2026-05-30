@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useStreak } from './hooks/useStreak';
 import { useProgress } from './hooks/useProgress';
 import BottomNav from './components/BottomNav';
+import ProModal from './components/ProModal';
 import Home from './pages/Home';
 import ToolBreakdown from './pages/ToolBreakdown';
 import Library from './pages/Library';
@@ -20,6 +22,9 @@ export default function App() {
     markComplete, markViewed,
     isCompleted, isViewed,
   } = useProgress();
+
+  const [proModalOpen, setProModalOpen] = useState(false);
+  const openProModal = () => setProModalOpen(true);
 
   return (
     <div className="app-shell">
@@ -41,6 +46,7 @@ export default function App() {
               markComplete={markComplete}
               isCompleted={isCompleted}
               markViewed={markViewed}
+              openProModal={openProModal}
             />
           }
         />
@@ -51,7 +57,7 @@ export default function App() {
               isPro={isPro}
               isCompleted={isCompleted}
               isViewed={isViewed}
-              setIsPro={setIsPro}
+              openProModal={openProModal}
             />
           }
         />
@@ -65,6 +71,7 @@ export default function App() {
               freezesAvailable={freezesAvailable}
               isPro={isPro}
               streakFrozenToday={streakFrozenToday}
+              openProModal={openProModal}
             />
           }
         />
@@ -79,12 +86,19 @@ export default function App() {
               viewedCount={viewedCount}
               freezesAvailable={freezesAvailable}
               isPro={isPro}
-              setIsPro={setIsPro}
+              openProModal={openProModal}
             />
           }
         />
       </Routes>
       <BottomNav />
+
+      {proModalOpen && (
+        <ProModal
+          onClose={() => setProModalOpen(false)}
+          onUnlock={() => setIsPro(true)}
+        />
+      )}
     </div>
   );
 }

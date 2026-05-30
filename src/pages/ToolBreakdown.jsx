@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getToolByDay, getTodaysTool, CATEGORY_COLORS, CATEGORY_ICONS } from '../data/tools';
+import { track, EVENTS } from '../hooks/useAnalytics';
 
-export default function ToolBreakdown({ isPro, markComplete, isCompleted, markViewed }) {
+export default function ToolBreakdown({ isPro, markComplete, isCompleted, markViewed, openProModal }) {
   const { day } = useParams();
   const navigate = useNavigate();
   const tool = getToolByDay(day);
@@ -10,7 +11,10 @@ export default function ToolBreakdown({ isPro, markComplete, isCompleted, markVi
   const [justCompleted, setJustCompleted] = useState(false);
 
   useEffect(() => {
-    if (tool) markViewed(tool.day);
+    if (tool) {
+      markViewed(tool.day);
+      track(EVENTS.TOOL_OPENED, { tool: tool.name, day: tool.day, category: tool.category, source: 'breakdown' });
+    }
   }, [tool, markViewed]);
 
   if (!tool) {
@@ -32,6 +36,7 @@ export default function ToolBreakdown({ isPro, markComplete, isCompleted, markVi
   const handleComplete = () => {
     markComplete(tool.day);
     setJustCompleted(true);
+    track(EVENTS.CHALLENGE_COMPLETED, { tool: tool.name, day: tool.day, category: tool.category });
     setTimeout(() => setJustCompleted(false), 2000);
   };
 
@@ -63,16 +68,19 @@ export default function ToolBreakdown({ isPro, markComplete, isCompleted, markVi
           borderRadius: 16,
         }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>🔒</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#FAF7F0', marginBottom: 4 }}>Pro Tip — Upgrade to Unlock</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#FAF7F0', marginBottom: 4 }}>Pro Tip — Founding Members Only</div>
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => {
+              track(EVENTS.UPGRADE_CTA_CLICKED, { cta: 'pro_tip_lock' });
+              openProModal();
+            }}
             style={{
               background: '#C9A84C', color: '#0B1F3A',
               border: 'none', borderRadius: 10, padding: '8px 16px',
               fontSize: 12, fontWeight: 800, cursor: 'pointer', marginTop: 4,
             }}
           >
-            Go Pro — $4.99/mo
+            Unlock Free During Beta →
           </button>
         </div>
       )}
@@ -187,7 +195,7 @@ export default function ToolBreakdown({ isPro, markComplete, isCompleted, markVi
                 padding: '16px', fontSize: 15, fontWeight: 800,
                 cursor: 'pointer',
                 transition: 'background 0.3s, transform 0.15s',
-                transform: justCompleted ? 'scale(0.98)' : 'scale(1)',
+                transform: justCompleted ? 'scale(0.97)' : 'scale(1)',
               }}
             >
               {justCompleted ? '✅ Marked Complete!' : 'Mark Challenge Complete'}

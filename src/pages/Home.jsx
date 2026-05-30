@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTodaysTool, CATEGORY_COLORS, CATEGORY_ICONS, TOOLS } from '../data/tools';
+import { track, EVENTS } from '../hooks/useAnalytics';
 
 const LAUNCH = new Date(2026, 4, 29);
 function getDayNumber() {
@@ -18,7 +19,10 @@ export default function Home({ streak, markViewed }) {
   const dayNumber = getDayNumber();
 
   useEffect(() => {
-    if (tool) markViewed(tool.day);
+    if (tool) {
+      markViewed(tool.day);
+      track(EVENTS.TOOL_OPENED, { tool: tool.name, day: tool.day, category: tool.category });
+    }
   }, [tool, markViewed]);
 
   if (!tool) return null;
@@ -28,12 +32,15 @@ export default function Home({ streak, markViewed }) {
   const color = CATEGORY_COLORS[tool.category];
   const icon = CATEGORY_ICONS[tool.category];
 
-  // Pick a few "coming up" tools
   const upcoming = [];
   for (let i = 1; i <= 3; i++) {
     const idx = ((dayNumber - 1 + i) % 60);
     upcoming.push(TOOLS[idx]);
   }
+
+  const handleCardClick = () => {
+    navigate(`/tool/${tool.day}`);
+  };
 
   return (
     <div className="page" style={{ background: '#0B1F3A' }}>
@@ -64,24 +71,36 @@ export default function Home({ streak, markViewed }) {
         </button>
       </div>
 
-      {/* Day label */}
-      <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{
-          background: `${color}18`, border: `1px solid ${color}40`,
-          borderRadius: 20, padding: '4px 12px',
-          fontSize: 11, fontWeight: 700, color, letterSpacing: 0.5,
-        }}>
-          {icon} {tool.category}
+      {/* Day label + progress bar */}
+      <div style={{ padding: '16px 20px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <div style={{
+            background: `${color}18`, border: `1px solid ${color}40`,
+            borderRadius: 20, padding: '4px 12px',
+            fontSize: 11, fontWeight: 700, color, letterSpacing: 0.5,
+          }}>
+            {icon} {tool.category}
+          </div>
+          <div style={{ fontSize: 11, color: '#6B7E99', fontWeight: 600 }}>
+            Day {dayNumber} of 60
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: '#6B7E99', fontWeight: 600 }}>
-          Day {dayNumber} of 60
+        {/* Progress bar */}
+        <div style={{
+          height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2,
+        }}>
+          <div style={{
+            height: '100%', width: `${(dayNumber / 60) * 100}%`,
+            background: color, borderRadius: 2,
+            transition: 'width 0.6s ease',
+          }} />
         </div>
       </div>
 
       {/* Main Tool Card */}
       <div
         className="fade-up fade-up-1"
-        onClick={() => navigate(`/tool/${tool.day}`)}
+        onClick={handleCardClick}
         style={{
           margin: '12px 20px 0',
           background: '#1E2D42',
@@ -93,7 +112,6 @@ export default function Home({ streak, markViewed }) {
           overflow: 'hidden',
         }}
       >
-        {/* Glow accent */}
         <div style={{
           position: 'absolute', top: -40, right: -40,
           width: 160, height: 160, borderRadius: '50%',
@@ -101,7 +119,6 @@ export default function Home({ streak, markViewed }) {
           pointerEvents: 'none',
         }} />
 
-        {/* Tool name */}
         <div style={{
           fontSize: 28, fontWeight: 900, color: '#FAF7F0',
           letterSpacing: -0.5, marginBottom: 6,
@@ -109,7 +126,6 @@ export default function Home({ streak, markViewed }) {
           {tool.name}
         </div>
 
-        {/* Tagline */}
         <div style={{
           fontSize: 15, color: color, fontWeight: 600,
           marginBottom: 16, lineHeight: 1.4,
@@ -117,7 +133,6 @@ export default function Home({ streak, markViewed }) {
           {tool.tagline}
         </div>
 
-        {/* What it does preview */}
         <div style={{
           fontSize: 14, color: '#8A9DB8', lineHeight: 1.6,
           marginBottom: 20,
@@ -129,20 +144,19 @@ export default function Home({ streak, markViewed }) {
           {tool.whatItDoes}
         </div>
 
-        {/* CTA */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           background: color, borderRadius: 12,
           padding: '13px 18px', justifyContent: 'center',
         }}>
           <span style={{ fontSize: 14, fontWeight: 800, color: '#0B1F3A' }}>
-            Read Breakdown
+            Read Full Breakdown
           </span>
           <span style={{ fontSize: 14, color: '#0B1F3A' }}>→</span>
         </div>
       </div>
 
-      {/* Try it today quick glance */}
+      {/* Today's challenge */}
       <div
         className="fade-up fade-up-2"
         style={{
@@ -168,7 +182,7 @@ export default function Home({ streak, markViewed }) {
             cursor: 'pointer', width: '100%',
           }}
         >
-          Mark Challenge Complete →
+          Open Breakdown & Complete →
         </button>
       </div>
 

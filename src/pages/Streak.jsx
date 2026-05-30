@@ -1,4 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { track, EVENTS } from '../hooks/useAnalytics';
+import { CONFIG } from '../config';
 
 const MILESTONES = [7, 30, 100];
 
@@ -35,8 +37,12 @@ function Ring({ radius, strokeWidth, progress, color }) {
   );
 }
 
-export default function Streak({ streak, longestStreak, totalDays, freezesAvailable, isPro, streakFrozenToday }) {
-  const navigate = useNavigate();
+export default function Streak({ streak, longestStreak, totalDays, freezesAvailable, isPro, streakFrozenToday, openProModal }) {
+  const [shareFlash, setShareFlash] = useState(false);
+
+  useEffect(() => {
+    track(EVENTS.STREAK_VIEWED, { streak, longestStreak });
+  }, []);
 
   const nextMilestone = MILESTONES.find(m => streak < m) || 365;
   const prevMilestone = MILESTONES.filter(m => streak >= m).pop() || 0;
@@ -55,6 +61,19 @@ export default function Streak({ streak, longestStreak, totalDays, freezesAvaila
     if (streak === 30) return "30 days. Unstoppable. 🔥";
     if (streak < 100) return `${100 - streak} days to legend status`;
     return "Legend status. 100+ days. 🔥";
+  };
+
+  const handleShare = () => {
+    track(EVENTS.SHARE_CLICKED, { streak });
+    const text = `I'm on a ${streak}-day streak on MattGPT Daily 🔥 Learning one AI tool every day. Join me → ${CONFIG.APP_URL}`;
+    if (navigator.share) {
+      navigator.share({ text, url: CONFIG.APP_URL }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(text).then(() => {
+        setShareFlash(true);
+        setTimeout(() => setShareFlash(false), 2000);
+      });
+    }
   };
 
   return (
@@ -89,7 +108,6 @@ export default function Streak({ streak, longestStreak, totalDays, freezesAvaila
           </div>
         </div>
 
-        {/* Streak count */}
         <div style={{
           fontSize: 64, fontWeight: 900, color: '#FAF7F0',
           letterSpacing: -2, lineHeight: 1, marginTop: 8,
@@ -106,7 +124,6 @@ export default function Streak({ streak, longestStreak, totalDays, freezesAvaila
           {getMessage()}
         </div>
 
-        {/* Milestone progress */}
         {streak < 100 && (
           <div style={{ marginTop: 12, textAlign: 'center' }}>
             <div style={{ fontSize: 12, color: '#6B7E99' }}>
@@ -114,6 +131,21 @@ export default function Streak({ streak, longestStreak, totalDays, freezesAvaila
             </div>
           </div>
         )}
+
+        {/* Share button */}
+        <button
+          onClick={handleShare}
+          style={{
+            marginTop: 20,
+            background: shareFlash ? 'rgba(46,204,122,0.15)' : 'rgba(201,168,76,0.08)',
+            border: `1px solid ${shareFlash ? 'rgba(46,204,122,0.4)' : 'rgba(201,168,76,0.25)'}`,
+            borderRadius: 24, padding: '10px 22px',
+            color: shareFlash ? '#2ECC7A' : '#C9A84C',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          {shareFlash ? '✓ Copied!' : '📲 Share My Streak'}
+        </button>
       </div>
 
       {/* Milestones */}
@@ -198,7 +230,10 @@ export default function Streak({ streak, longestStreak, totalDays, freezesAvaila
       {!isPro && (
         <div style={{ padding: '16px 20px 24px' }}>
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => {
+              track(EVENTS.UPGRADE_CTA_CLICKED, { cta: 'streak_freeze' });
+              openProModal();
+            }}
             style={{
               width: '100%',
               background: 'rgba(91,184,255,0.08)', border: '1px solid rgba(91,184,255,0.25)',
@@ -208,7 +243,7 @@ export default function Streak({ streak, longestStreak, totalDays, freezesAvaila
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            <span>🧊</span> Upgrade to Pro for Streak Freezes
+            <span>🧊</span> Get Streak Freezes — Join Free →
           </button>
         </div>
       )}
