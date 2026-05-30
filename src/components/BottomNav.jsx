@@ -1,10 +1,10 @@
 import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { to: '/',         icon: '✦',  label: 'Today'   },
-  { to: '/library',  icon: '◫',  label: 'Library' },
-  { to: '/streak',   icon: '🔥', label: 'Streak'  },
-  { to: '/profile',  icon: '◉',  label: 'Profile' },
+  { to: '/',        icon: '✦',  label: 'Today'   },
+  { to: '/library', icon: '◫',  label: 'Library' },
+  { to: '/streak',  icon: '🔥', label: 'Streak'  },
+  { to: '/profile', icon: '◉',  label: 'Profile' },
 ];
 
 const S = {
@@ -43,18 +43,19 @@ const S = {
 
 export default function BottomNav() {
   return (
-    <nav style={S.nav}>
+    <nav style={S.nav} aria-label="Main navigation">
       {NAV_ITEMS.map(({ to, icon, label }) => (
         <NavLink
           key={to}
           to={to}
           end={to === '/'}
+          aria-label={label}
           style={({ isActive }) => ({
             ...S.item,
             color: isActive ? '#C9A84C' : '#5A7090',
           })}
         >
-          <span style={S.icon}>{icon}</span>
+          <span style={S.icon} aria-hidden="true">{icon}</span>
           <span>{label}</span>
         </NavLink>
       ))}

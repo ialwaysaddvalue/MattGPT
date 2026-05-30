@@ -1,15 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CONFIG } from '../config';
 import { track, EVENTS } from '../hooks/useAnalytics';
 
-const WEEK_TOOLS = [
-  '✍️ ChatGPT', '🎨 Midjourney', '🎬 Runway ML', '⚡ Zapier', '💼 Stripe', '🎉 Suno AI', '💰 Monarch Money',
-];
-
 export default function Profile({
   streak, longestStreak, totalDays, completedCount, viewedCount,
-  freezesAvailable, isPro, openProModal,
+  isPro, openProModal,
 }) {
+  const navigate = useNavigate();
   const [shareFlash, setShareFlash] = useState(false);
 
   const handleShare = () => {
@@ -97,25 +95,45 @@ export default function Profile({
         </div>
       </div>
 
-      {/* Weekly digest preview */}
+      {/* Quick links */}
       <div style={{ padding: '0 20px 20px' }}>
         <div style={{ fontSize: 10, fontWeight: 800, color: '#6B7E99', letterSpacing: 1.5, marginBottom: 10 }}>
-          THIS WEEK IN AI
+          QUICK LINKS
         </div>
         <div style={{
           background: '#1E2D42', border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: 16, padding: '16px',
+          borderRadius: 16, overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {WEEK_TOOLS.map((t, i) => (
-              <div key={i} style={{
-                background: 'rgba(255,255,255,0.05)', borderRadius: 8,
-                padding: '6px 10px', fontSize: 12, color: '#BFD0E8',
-              }}>
-                {t}
+          {[
+            {
+              label: '📜 Challenge History',
+              sub: isPro ? `${completedCount} completed` : 'Pro feature',
+              onClick: () => navigate('/history'),
+            },
+            {
+              label: '🔒 Privacy & Terms',
+              sub: 'How we handle your data',
+              onClick: () => navigate('/privacy'),
+            },
+          ].map((item, i, arr) => (
+            <button
+              key={i}
+              onClick={item.onClick}
+              style={{
+                width: '100%', background: 'transparent', border: 'none',
+                borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                padding: '14px 16px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#FAF7F0', textAlign: 'left' }}>{item.label}</div>
+                <div style={{ fontSize: 11, color: '#6B7E99', marginTop: 2, textAlign: 'left' }}>{item.sub}</div>
               </div>
-            ))}
-          </div>
+              <span style={{ color: '#6B7E99', fontSize: 14 }}>›</span>
+            </button>
+          ))}
         </div>
       </div>
 

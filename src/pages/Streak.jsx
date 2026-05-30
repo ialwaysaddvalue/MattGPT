@@ -42,7 +42,7 @@ export default function Streak({ streak, longestStreak, totalDays, freezesAvaila
 
   useEffect(() => {
     track(EVENTS.STREAK_VIEWED, { streak, longestStreak });
-  }, []);
+  }, [streak, longestStreak]);
 
   const nextMilestone = MILESTONES.find(m => streak < m) || 365;
   const prevMilestone = MILESTONES.filter(m => streak >= m).pop() || 0;

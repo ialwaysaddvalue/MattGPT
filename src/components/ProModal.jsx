@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CONFIG } from '../config';
 import { track, EVENTS } from '../hooks/useAnalytics';
 
@@ -16,12 +16,13 @@ function isValidEmail(e) {
 
 async function submitEmail(email) {
   const endpoint = CONFIG.FORMSPREE_ENDPOINT;
-  if (!endpoint) return; // localStorage-only mode
-  await fetch(endpoint, {
+  if (!endpoint) return;
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email, source: 'MattGPT Daily Pro Waitlist' }),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 export default function ProModal({ onClose, onUnlock }) {
@@ -29,6 +30,37 @@ export default function ProModal({ onClose, onUnlock }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const emailRef = useRef(null);
+
+  // Auto-focus email input when modal opens
+  useEffect(() => {
+    const t = setTimeout(() => emailRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Escape key closes the modal
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  // Focus trap — keep Tab inside the dialog
+  const handleKeyDown = (e) => {
+    if (e.key !== 'Tab') return;
+    const modal = e.currentTarget;
+    const focusable = Array.from(modal.querySelectorAll(
+      'input, button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+    ));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
 
   const handleJoin = async () => {
     if (!isValidEmail(email)) {
@@ -39,18 +71,16 @@ export default function ProModal({ onClose, onUnlock }) {
     setError('');
     try {
       await submitEmail(email);
-      // Store locally regardless
       localStorage.setItem('mgd_pro_email', email);
       track(EVENTS.WAITLIST_SUBMITTED, { email_domain: email.split('@')[1] });
       setDone(true);
-      // Unlock Pro immediately — founding member benefit
       setTimeout(() => {
         track(EVENTS.PRO_UNLOCKED, { method: 'founding_member' });
         onUnlock();
         onClose();
       }, 2200);
     } catch {
-      setError('Something went wrong. Try again.');
+      setError('Something went wrong. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -67,6 +97,7 @@ export default function ProModal({ onClose, onUnlock }) {
 
   return (
     <div
+      role="presentation"
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
         background: 'rgba(7,21,42,0.92)',
@@ -76,6 +107,10 @@ export default function ProModal({ onClose, onUnlock }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Upgrade to Pro"
+        onKeyDown={handleKeyDown}
         onClick={e => e.stopPropagation()}
         style={{
           background: '#1A2C42',
@@ -84,6 +119,7 @@ export default function ProModal({ onClose, onUnlock }) {
           padding: '28px 24px 32px',
           width: '100%',
           maxWidth: 430,
+          position: 'relative',
         }}
       >
         {/* Drag handle */}
@@ -92,8 +128,21 @@ export default function ProModal({ onClose, onUnlock }) {
           borderRadius: 2, margin: '0 auto 20px',
         }} />
 
+        {/* Accessible close button */}
+        <button
+          onClick={onClose}
+          aria-label="Close dialog"
+          style={{
+            position: 'absolute', top: 20, right: 20,
+            background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8,
+            color: '#8A9DB8', fontSize: 18, cursor: 'pointer',
+            width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          ×
+        </button>
+
         {done ? (
-          /* ── Success state ── */
           <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: '#FAF7F0', marginBottom: 8 }}>
@@ -139,11 +188,15 @@ export default function ProModal({ onClose, onUnlock }) {
 
             {/* Email input */}
             <input
+              ref={emailRef}
               type="email"
               placeholder="your@email.com"
               value={email}
               onChange={e => { setEmail(e.target.value); setError(''); }}
               onKeyDown={e => e.key === 'Enter' && handleJoin()}
+              aria-label="Email address"
+              aria-describedby={error ? 'modal-error' : undefined}
+              aria-invalid={!!error}
               style={{
                 width: '100%', background: '#0B1F3A',
                 border: `1px solid ${error ? '#E05555' : 'rgba(255,255,255,0.12)'}`,
@@ -154,7 +207,9 @@ export default function ProModal({ onClose, onUnlock }) {
               }}
             />
             {error && (
-              <div style={{ fontSize: 12, color: '#E05555', marginBottom: 10 }}>{error}</div>
+              <div id="modal-error" role="alert" style={{ fontSize: 12, color: '#E05555', marginBottom: 10 }}>
+                {error}
+              </div>
             )}
 
             {/* Join button */}
@@ -165,7 +220,8 @@ export default function ProModal({ onClose, onUnlock }) {
                 width: '100%', background: loading ? '#8A6A2A' : '#C9A84C',
                 color: '#0B1F3A', border: 'none', borderRadius: 14,
                 padding: '15px', fontSize: 15, fontWeight: 800,
-                cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 10,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                marginBottom: 10,
               }}
             >
               {loading ? 'Joining…' : 'Join & Unlock Pro Free →'}
@@ -184,8 +240,12 @@ export default function ProModal({ onClose, onUnlock }) {
               {CONFIG.STRIPE_LINK ? 'Pay $4.99/mo instead →' : 'Contact us to subscribe →'}
             </button>
 
-            <div style={{ fontSize: 11, color: '#4A5E75', textAlign: 'center', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 11, color: '#4A5E75', textAlign: 'center', lineHeight: 1.8 }}>
               No spam. No payment required during beta. Founding members lock in free access.
+              {' · '}
+              <a href="/#/privacy" style={{ color: '#6B7E99', textDecoration: 'underline' }}>
+                Privacy Policy
+              </a>
             </div>
           </>
         )}

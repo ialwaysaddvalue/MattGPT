@@ -1,3 +1,5 @@
+import { CONFIG } from '../config';
+
 export const CATEGORY_COLORS = {
   Writing: '#C9A84C',
   Image: '#9B8FFF',
@@ -332,13 +334,13 @@ export const TOOLS = [
   {
     day: 29,
     category: 'Productivity',
-    name: 'Notion AI',
-    url: 'https://notion.so',
-    tagline: 'Your second brain, now with the ability to read itself.',
-    whatItDoes: 'Notion AI inside your database and project views can summarize pages, generate status updates, draft SOPs from bullet points, and turn meeting notes into project tasks automatically.',
-    whoItsFor: 'Anyone using Notion for project management, content planning, or business operations. The AI layer makes existing Notion setups dramatically more powerful.',
-    tryItToday: 'Open any Notion page with content. Press the space bar anywhere on the page and choose: "Create AI action items from this." See what it extracts.',
-    proTip: 'Build a Weekly Review template with AI prompts built in. Each Sunday: paste your week\'s notes and let Notion AI generate your review, wins, blockers, and priorities.',
+    name: 'Mem.ai',
+    url: 'https://mem.ai',
+    tagline: 'Your notes, automatically organized by AI.',
+    whatItDoes: 'Mem is an AI-powered note-taking app that organizes everything for you. You just write — Mem\'s AI connects related notes, surfaces relevant context when you need it, and lets you search across everything you\'ve ever written in plain English.',
+    whoItsFor: 'Knowledge workers, researchers, writers, and professionals who take lots of notes but struggle to find them later. If you\'re drowning in scattered notes across multiple apps, Mem brings order without requiring any manual organization.',
+    tryItToday: 'Create a free Mem account. Take 5 quick notes on different topics you\'re working on — meetings, ideas, research snippets. Don\'t tag or folder anything. Then use the AI search to ask "What have I written about [topic]?" and see what it surfaces.',
+    proTip: 'Use Mem\'s AI Chat to query your own knowledge base. Ask questions like "What decisions have I made about my pricing?" or "Summarize everything I know about this client" — Mem answers from your own notes, not the internet.',
   },
   {
     day: 30,
@@ -684,10 +686,9 @@ export const TOOLS = [
 ];
 
 export const getTodaysTool = () => {
-  const LAUNCH = new Date(2026, 4, 29); // May 29, 2026 — month is 0-indexed
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const daysSinceLaunch = Math.floor((today - LAUNCH) / (1000 * 60 * 60 * 24));
+  const daysSinceLaunch = Math.floor((today - CONFIG.LAUNCH_DATE) / (1000 * 60 * 60 * 24));
   const dayIndex = ((daysSinceLaunch % 60) + 60) % 60; // always 0-59
   return TOOLS[dayIndex];
 };

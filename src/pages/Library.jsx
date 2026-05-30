@@ -1,13 +1,13 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TOOLS, CATEGORIES, CATEGORY_COLORS, CATEGORY_ICONS, getTodaysTool } from '../data/tools';
 import { track, EVENTS } from '../hooks/useAnalytics';
+import { CONFIG } from '../config';
 
-const LAUNCH = new Date(2026, 4, 29);
 function getTodayDayIndex() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diff = Math.floor((today - LAUNCH) / (1000 * 60 * 60 * 24));
+  const diff = Math.floor((today - CONFIG.LAUNCH_DATE) / (1000 * 60 * 60 * 24));
   return ((diff % 60) + 60) % 60;
 }
 
@@ -15,6 +15,7 @@ export default function Library({ isPro, isCompleted, isViewed, openProModal }) 
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'Completed' | 'Free'
   const todayTool = getTodaysTool();
   const todayIndex = getTodayDayIndex();
   const searchTimer = useRef(null);
@@ -32,22 +33,29 @@ export default function Library({ isPro, isCompleted, isViewed, openProModal }) 
 
   const freeLimit = 7;
 
-  const filtered = useMemo(() => {
-    return availableTools.filter(t => {
-      const matchCat = activeCategory === 'All' || t.category === activeCategory;
-      const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase()) ||
-        t.tagline.toLowerCase().includes(search.toLowerCase()) ||
-        t.category.toLowerCase().includes(search.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [availableTools, activeCategory, search]);
-
   const isAccessible = (dayNum) => {
     if (isPro) return true;
     const toolIndex = TOOLS.findIndex(t => t.day === dayNum);
     const daysAgo = ((todayIndex - toolIndex) + 60) % 60;
     return daysAgo < freeLimit;
   };
+
+  const filtered = useMemo(() => {
+    return availableTools.filter(t => {
+      const matchCat = activeCategory === 'All' || t.category === activeCategory;
+      const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase()) ||
+        t.tagline.toLowerCase().includes(search.toLowerCase()) ||
+        t.category.toLowerCase().includes(search.toLowerCase());
+      const accessible = isAccessible(t.day);
+      const matchStatus =
+        statusFilter === 'All' ? true :
+        statusFilter === 'Completed' ? isCompleted(t.day) :
+        statusFilter === 'Free' ? accessible :
+        true;
+      return matchCat && matchSearch && matchStatus;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableTools, activeCategory, search, statusFilter, isCompleted, isPro, todayIndex]);
 
   const learnedCount = useMemo(() => TOOLS.filter(t => isViewed(t.day)).length, [isViewed]);
 
@@ -105,6 +113,30 @@ export default function Library({ isPro, isCompleted, isViewed, openProModal }) 
               style={{ background: 'none', border: 'none', color: '#6B7E99', cursor: 'pointer', fontSize: 16 }}
             >×</button>
           )}
+        </div>
+
+        {/* Status filter pills */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          {['All', 'Free', 'Completed'].map(s => {
+            const isActive = s === statusFilter;
+            return (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                aria-pressed={isActive}
+                style={{
+                  background: isActive ? 'rgba(46,204,122,0.15)' : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${isActive ? 'rgba(46,204,122,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                  borderRadius: 20, padding: '5px 12px',
+                  color: isActive ? '#2ECC7A' : '#8A9DB8',
+                  fontSize: 12, fontWeight: isActive ? 700 : 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {s === 'Completed' ? '✅ ' : s === 'Free' ? '🔓 ' : ''}{s}
+              </button>
+            );
+          })}
         </div>
 
         {/* Category filters */}

@@ -2,12 +2,12 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTodaysTool, CATEGORY_COLORS, CATEGORY_ICONS, TOOLS } from '../data/tools';
 import { track, EVENTS } from '../hooks/useAnalytics';
+import { CONFIG } from '../config';
 
-const LAUNCH = new Date(2026, 4, 29);
 function getDayNumber() {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diff = Math.floor((today - LAUNCH) / (1000 * 60 * 60 * 24));
+  const diff = Math.floor((today - CONFIG.LAUNCH_DATE) / (1000 * 60 * 60 * 24));
   return ((diff % 60) + 60) % 60 + 1;
 }
 
